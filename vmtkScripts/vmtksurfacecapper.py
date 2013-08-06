@@ -47,7 +47,7 @@ class vmtkSurfaceCapper(pypes.pypeScript):
             ['Method','method','str',1,'["simple","centerpoint","smooth","annular","concaveannular"]','capping method'],
             ['TriangleOutput','triangle','bool',1,'','toggle triangulation of the output'],
             ['CellEntityIdsArrayName','entityidsarray','str',1,'','name of the array where the id of the caps have to be stored'],
-            ['CellEntityIdOffset','entityidoffset','int',1,'(0,)','offset for entity ids ("simple" method only")'],
+            ['CellEntityIdOffset','entityidoffset','int',1,'(0,)','offset for entity ids'],
             ['ConstraintFactor','constraint','float',1,'','amount of influence of the shape of the surface near the boundary on the shape of the cap ("smooth" method only)'],
             ['NumberOfRings','rings','int',1,'(0,)','number of rings composing the cap ("smooth" method only)'],
             ['Interactive','interactive','bool',1],
@@ -147,10 +147,7 @@ class vmtkSurfaceCapper(pypes.pypeScript):
             capper.SetInput(self.Surface)
             if self.Interactive:
                 capper.SetBoundaryIds(boundaryIds)
-            capper.SetCellEntityIdsArrayName(self.CellEntityIdsArrayName)
-            capper.SetCellEntityIdOffset(self.CellEntityIdOffset)
-            capper.Update()
-            self.Surface = capper.GetOutput()
+
         elif self.Method == 'centerpoint':
             capper = vtkvmtk.vtkvmtkCapPolyData()
             capper.SetInput(self.Surface)
@@ -158,8 +155,7 @@ class vmtkSurfaceCapper(pypes.pypeScript):
                 capper.SetBoundaryIds(boundaryIds)
             capper.SetDisplacement(0.0)
             capper.SetInPlaneDisplacement(0.0)
-            capper.Update()
-            self.Surface = capper.GetOutput()
+
         elif self.Method == 'smooth':
             triangle = vtk.vtkTriangleFilter()
             triangle.SetInput(self.Surface)
@@ -172,23 +168,20 @@ class vmtkSurfaceCapper(pypes.pypeScript):
             capper.SetNumberOfRings(self.NumberOfRings)
             if self.Interactive:
                 capper.SetBoundaryIds(boundaryIds)
-            capper.Update()
-            self.Surface = capper.GetOutput()
+
         elif self.Method == 'annular':
             capper = vtkvmtk.vtkvmtkAnnularCapPolyData()
             capper.SetInput(self.Surface)
-            capper.SetCellEntityIdsArrayName(self.CellEntityIdsArrayName)
-            capper.SetCellEntityIdOffset(self.CellEntityIdOffset)
-            capper.Update()
-            self.Surface = capper.GetOutput()
+
         elif self.Method == 'concaveannular':
             import vtkvmtkcontrib
             capper = vtkvmtkcontrib.vtkvmtkConcaveAnnularCapPolyData()
             capper.SetInput(self.Surface)
-            capper.SetCellEntityIdsArrayName(self.CellEntityIdsArrayName)
-            capper.SetCellEntityIdOffset(self.CellEntityIdOffset)
-            capper.Update()
-            self.Surface = capper.GetOutput()
+
+        capper.SetCellEntityIdsArrayName(self.CellEntityIdsArrayName)
+        capper.SetCellEntityIdOffset(self.CellEntityIdOffset)
+        capper.Update()
+        self.Surface = capper.GetOutput()
 
         if self.TriangleOutput == 1:
             triangle = vtk.vtkTriangleFilter()

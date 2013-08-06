@@ -69,18 +69,6 @@ int vtkvmtkAnnularCapPolyData::RequestData(
     return 1;
     }
 
-  bool markCells = true;
-
-  if (!this->CellEntityIdsArrayName)
-    {
-    markCells = false;
-    }
-
-  if (strcmp(this->CellEntityIdsArrayName,"") == 0)
-    {
-    markCells = false;
-    }
-
   input->BuildLinks();
 
   vtkPoints* newPoints = vtkPoints::New();
@@ -90,7 +78,7 @@ int vtkvmtkAnnularCapPolyData::RequestData(
   newPolys->DeepCopy(input->GetPolys());
 
   vtkIdTypeArray* cellEntityIdsArray = NULL;
-
+  bool markCells = this->CellEntityIdsArrayName && this->CellEntityIdsArrayName[0];
   if (markCells)
     {
     cellEntityIdsArray = vtkIdTypeArray::New();

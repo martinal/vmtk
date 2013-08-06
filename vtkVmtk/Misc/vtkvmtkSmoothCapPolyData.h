@@ -10,11 +10,11 @@ Version:   $Revision: 1.5 $
   See LICENCE file for details.
 
   Portions of this code are covered under the VTK copyright.
-  See VTKCopyright.txt or http://www.kitware.com/VTKCopyright.htm 
+  See VTKCopyright.txt or http://www.kitware.com/VTKCopyright.htm
   for details.
 
-     This software is distributed WITHOUT ANY WARRANTY; without even 
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+     This software is distributed WITHOUT ANY WARRANTY; without even
+     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
      PURPOSE.  See the above copyright notices for more information.
 
 =========================================================================*/
@@ -31,12 +31,12 @@ Version:   $Revision: 1.5 $
 
 class VTK_VMTK_MISC_EXPORT vtkvmtkSmoothCapPolyData : public vtkPolyDataAlgorithm
 {
-  public: 
+  public:
   vtkTypeRevisionMacro(vtkvmtkSmoothCapPolyData,vtkPolyDataAlgorithm);
-  void PrintSelf(ostream& os, vtkIndent indent); 
+  void PrintSelf(ostream& os, vtkIndent indent);
 
   static vtkvmtkSmoothCapPolyData *New();
-  
+
   vtkSetObjectMacro(BoundaryIds,vtkIdList);
   vtkGetObjectMacro(BoundaryIds,vtkIdList);
 
@@ -46,15 +46,25 @@ class VTK_VMTK_MISC_EXPORT vtkvmtkSmoothCapPolyData : public vtkPolyDataAlgorith
   vtkSetMacro(NumberOfRings,int);
   vtkGetMacro(NumberOfRings,int);
 
+  vtkSetStringMacro(CellEntityIdsArrayName);
+  vtkGetStringMacro(CellEntityIdsArrayName);
+
+  vtkSetMacro(CellEntityIdOffset,int);
+  vtkGetMacro(CellEntityIdOffset,int);
+
   protected:
   vtkvmtkSmoothCapPolyData();
-  ~vtkvmtkSmoothCapPolyData();  
+  ~vtkvmtkSmoothCapPolyData();
 
   virtual int RequestData(vtkInformation *, vtkInformationVector **, vtkInformationVector *);
 
   vtkIdList* BoundaryIds;
   double ConstraintFactor;
   int NumberOfRings;
+
+  char* CellEntityIdsArrayName;
+
+  int CellEntityIdOffset;
 
   private:
   vtkvmtkSmoothCapPolyData(const vtkvmtkSmoothCapPolyData&);  // Not implemented.

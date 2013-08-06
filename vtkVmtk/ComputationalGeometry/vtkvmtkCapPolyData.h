@@ -10,11 +10,11 @@ Version:   $Revision: 1.4 $
   See LICENCE file for details.
 
   Portions of this code are covered under the VTK copyright.
-  See VTKCopyright.txt or http://www.kitware.com/VTKCopyright.htm 
+  See VTKCopyright.txt or http://www.kitware.com/VTKCopyright.htm
   for details.
 
-     This software is distributed WITHOUT ANY WARRANTY; without even 
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+     This software is distributed WITHOUT ANY WARRANTY; without even
+     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
      PURPOSE.  See the above copyright notices for more information.
 
 =========================================================================*/
@@ -34,17 +34,17 @@ Version:   $Revision: 1.4 $
 
 class VTK_VMTK_COMPUTATIONAL_GEOMETRY_EXPORT vtkvmtkCapPolyData : public vtkPolyDataAlgorithm
 {
-  public: 
+  public:
   vtkTypeRevisionMacro(vtkvmtkCapPolyData,vtkPolyDataAlgorithm);
-  void PrintSelf(ostream& os, vtkIndent indent); 
+  void PrintSelf(ostream& os, vtkIndent indent);
 
   static vtkvmtkCapPolyData *New();
- 
+
   // Description:
   // Set/Get the ids of the boundaries to cap.
   vtkSetObjectMacro(BoundaryIds,vtkIdList);
   vtkGetObjectMacro(BoundaryIds,vtkIdList);
- 
+
   // Description:
   // Set/Get the displacement of boundary baricenters along boundary normals relative to the radius.
   vtkSetMacro(Displacement,double);
@@ -59,9 +59,15 @@ class VTK_VMTK_COMPUTATIONAL_GEOMETRY_EXPORT vtkvmtkCapPolyData : public vtkPoly
   // Get the ids of the newly inserted boundary baricenters.
   vtkGetObjectMacro(CapCenterIds,vtkIdList);
 
+  vtkSetStringMacro(CellEntityIdsArrayName);
+  vtkGetStringMacro(CellEntityIdsArrayName);
+
+  vtkSetMacro(CellEntityIdOffset,int);
+  vtkGetMacro(CellEntityIdOffset,int);
+
   protected:
   vtkvmtkCapPolyData();
-  ~vtkvmtkCapPolyData();  
+  ~vtkvmtkCapPolyData();
 
   virtual int RequestData(vtkInformation *, vtkInformationVector **, vtkInformationVector *);
 
@@ -69,6 +75,10 @@ class VTK_VMTK_COMPUTATIONAL_GEOMETRY_EXPORT vtkvmtkCapPolyData : public vtkPoly
   double Displacement;
   double InPlaneDisplacement;
   vtkIdList* CapCenterIds;
+
+  char* CellEntityIdsArrayName;
+
+  int CellEntityIdOffset;
 
   private:
   vtkvmtkCapPolyData(const vtkvmtkCapPolyData&);  // Not implemented.
