@@ -64,6 +64,7 @@ void cross_diff(const double start[3], const double forward[3], const double cen
 
 vtkvmtkConcaveAnnularCapPolyData::vtkvmtkConcaveAnnularCapPolyData()
 {
+  this->BoundaryIds = NULL;
   this->CellEntityIdsArrayName = NULL;
   this->CellEntityIdOffset = 1;
 }
@@ -74,6 +75,11 @@ vtkvmtkConcaveAnnularCapPolyData::~vtkvmtkConcaveAnnularCapPolyData()
     {
     delete[] this->CellEntityIdsArrayName;
     this->CellEntityIdsArrayName = NULL;
+    }
+  if (this->BoundaryIds)
+    {
+    this->BoundaryIds->Delete();
+    this->BoundaryIds = NULL;
     }
 }
 
@@ -215,10 +221,6 @@ int vtkvmtkConcaveAnnularCapPolyData::RequestData(
 
   int numberOfBoundaries = boundaries->GetNumberOfCells();
   std::cout << "Found " << numberOfBoundaries << " boundaries." << std::endl;
-  if (numberOfBoundaries % 2 != 0)
-    {
-    vtkErrorMacro(<< "Error: the number of boundaries must be even.");
-    }
 
   // Compute barycenters for all boundaries
   info("Computing boundary barycenters...");
@@ -231,9 +233,31 @@ int vtkvmtkConcaveAnnularCapPolyData::RequestData(
     barycenters->SetPoint(i, barycenter);
     }
 
-  // Allocate boundary pairing array
-  info("Pairing boundaries...");
-  vector<IdPair> boundaryPairs = build_closest_pairs(barycenters);
+  // Build pairs of boundaries, either automatically or from input
+  vector<IdPair> boundaryPairs;
+  if (this->BoundaryIds)
+    {
+      // Populate boundary pairing array from given BoundaryIds
+      info("Taking boundary pairs from input BoundaryIds...");
+      if (this->BoundaryIds->GetNumberOfIds() % 2)
+        {
+        vtkErrorMacro(<< "Error: the number of boundaries must be even.");
+        }
+      for (int i=0; i<this->BoundaryIds->GetNumberOfIds(); i+= 2)
+        {
+        boundaryPairs.push_back(make_pair(this->BoundaryIds->GetId(i), this->BoundaryIds->GetId(i+1)));
+        }
+    }
+  else
+    {
+      // Compute boundary pairing array from closest barycenter pairs
+      info("Pairing boundaries...");
+      if (numberOfBoundaries % 2 != 0)
+        {
+        vtkErrorMacro(<< "Error: the number of boundaries must be even.");
+        }
+      boundaryPairs = build_closest_pairs(barycenters);
+    }
 
   // Loop over all boundary pairings uniquely
   for (size_t pairingCount=0; pairingCount<boundaryPairs.size(); ++pairingCount)

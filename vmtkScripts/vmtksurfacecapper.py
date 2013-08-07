@@ -145,14 +145,10 @@ class vmtkSurfaceCapper(pypes.pypeScript):
         if self.Method == 'simple':
             capper = vtkvmtk.vtkvmtkSimpleCapPolyData()
             capper.SetInput(self.Surface)
-            if self.Interactive:
-                capper.SetBoundaryIds(boundaryIds)
 
         elif self.Method == 'centerpoint':
             capper = vtkvmtk.vtkvmtkCapPolyData()
             capper.SetInput(self.Surface)
-            if self.Interactive:
-                capper.SetBoundaryIds(boundaryIds)
             capper.SetDisplacement(0.0)
             capper.SetInPlaneDisplacement(0.0)
 
@@ -166,8 +162,6 @@ class vmtkSurfaceCapper(pypes.pypeScript):
             capper.SetInput(triangle.GetOutput())
             capper.SetConstraintFactor(self.ConstraintFactor)
             capper.SetNumberOfRings(self.NumberOfRings)
-            if self.Interactive:
-                capper.SetBoundaryIds(boundaryIds)
 
         elif self.Method == 'annular':
             capper = vtkvmtk.vtkvmtkAnnularCapPolyData()
@@ -178,6 +172,8 @@ class vmtkSurfaceCapper(pypes.pypeScript):
             capper = vtkvmtkcontrib.vtkvmtkConcaveAnnularCapPolyData()
             capper.SetInput(self.Surface)
 
+        if self.Interactive:
+            capper.SetBoundaryIds(boundaryIds)
         capper.SetCellEntityIdsArrayName(self.CellEntityIdsArrayName)
         capper.SetCellEntityIdOffset(self.CellEntityIdOffset)
         capper.Update()
