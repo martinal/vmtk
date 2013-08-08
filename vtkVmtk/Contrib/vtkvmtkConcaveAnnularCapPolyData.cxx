@@ -90,7 +90,7 @@ using std::pair;
 using std::make_pair;
 typedef pair<vtkIdType,vtkIdType> IdPair;
 
-vector<IdPair> build_closest_pairs(vtkSmartPointer<vtkPoints> barycenters)
+vector<IdPair> build_closest_pairs(vtkSmartPointer<vtkPoints> barycenters, vtkIdList* boundaryIds)
 {
   int numberOfBoundaries = barycenters->GetNumberOfPoints();
 
@@ -98,9 +98,25 @@ vector<IdPair> build_closest_pairs(vtkSmartPointer<vtkPoints> barycenters)
 
   // Allocate array for marking visited boundaries
   vector<bool> visited(numberOfBoundaries);
-  for (int i=0; i<numberOfBoundaries; i++)
+  if (boundaryIds)
     {
-      visited[i] = false; // TODO: I think this is unnecessary?
+      // Skip ids not in boundaryIds list
+      for (int i=0; i<numberOfBoundaries; i++)
+        {
+          visited[i] = true;
+        }
+      for (int i=0; i<boundaryIds->GetNumberOfIds(); i++)
+      {
+        visited[boundaryIds->GetId(i)] = false;
+      }
+    }
+  else
+    {
+    // Skip nothing
+    for (int i=0; i<numberOfBoundaries; i++)
+      {
+        visited[i] = false;
+      }
     }
 
   // Find the closest pairs of boundaries by comparing barycenter distances
@@ -207,8 +223,15 @@ int vtkvmtkConcaveAnnularCapPolyData::RequestData(
     {
     cellEntityIdsArray = vtkSmartPointer<vtkIntArray>::New();
     cellEntityIdsArray->SetName(this->CellEntityIdsArrayName);
-    cellEntityIdsArray->SetNumberOfTuples(newPolys->GetNumberOfCells());
-    cellEntityIdsArray->FillComponent(0,static_cast<double>(this->CellEntityIdOffset));
+    if (input->GetCellData()->GetArray(this->CellEntityIdsArrayName))
+      {
+      cellEntityIdsArray->DeepCopy(input->GetCellData()->GetArray(this->CellEntityIdsArrayName));
+      }
+    else
+      {
+      cellEntityIdsArray->SetNumberOfTuples(newPolys->GetNumberOfCells());
+      cellEntityIdsArray->FillComponent(0,static_cast<double>(this->CellEntityIdOffset));
+      }
     }
 
   // Extract all boundaries (polylines) from input mesh
@@ -233,31 +256,14 @@ int vtkvmtkConcaveAnnularCapPolyData::RequestData(
     barycenters->SetPoint(i, barycenter);
     }
 
-  // Build pairs of boundaries, either automatically or from input
-  vector<IdPair> boundaryPairs;
-  if (this->BoundaryIds)
+  // Build pairs of boundaries from closest barycenter pairs, limited to list of input ids if any
+  info("Pairing boundaries...");
+  if ( (this->BoundaryIds && this->BoundaryIds->GetNumberOfIds() % 2)
+       || (!this->BoundaryIds && numberOfBoundaries % 2) )
     {
-      // Populate boundary pairing array from given BoundaryIds
-      info("Taking boundary pairs from input BoundaryIds...");
-      if (this->BoundaryIds->GetNumberOfIds() % 2)
-        {
-        vtkErrorMacro(<< "Error: the number of boundaries must be even.");
-        }
-      for (int i=0; i<this->BoundaryIds->GetNumberOfIds(); i+= 2)
-        {
-        boundaryPairs.push_back(make_pair(this->BoundaryIds->GetId(i), this->BoundaryIds->GetId(i+1)));
-        }
+    vtkErrorMacro(<< "Error: the number of boundaries must be even.");
     }
-  else
-    {
-      // Compute boundary pairing array from closest barycenter pairs
-      info("Pairing boundaries...");
-      if (numberOfBoundaries % 2 != 0)
-        {
-        vtkErrorMacro(<< "Error: the number of boundaries must be even.");
-        }
-      boundaryPairs = build_closest_pairs(barycenters);
-    }
+  vector<IdPair> boundaryPairs = build_closest_pairs(barycenters, this->BoundaryIds);
 
   // Loop over all boundary pairings uniquely
   for (size_t pairingCount=0; pairingCount<boundaryPairs.size(); ++pairingCount)
