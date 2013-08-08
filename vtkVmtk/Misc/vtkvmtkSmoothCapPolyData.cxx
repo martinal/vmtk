@@ -245,6 +245,10 @@ int vtkvmtkSmoothCapPolyData::RequestData(
         newPolyIds->InsertNextId(circlePointIds->GetId(i));
         newPolys->InsertNextCell(newPolyIds);
         newPolyIds->Delete();
+        if (markCells)
+          {
+          cellEntityIdsArray->InsertNextValue(boundaryId+1+this->CellEntityIdOffset);
+          }
         }
       }
 
