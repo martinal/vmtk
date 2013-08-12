@@ -67,6 +67,7 @@ vtkvmtkConcaveAnnularCapPolyData::vtkvmtkConcaveAnnularCapPolyData()
   this->BoundaryIds = NULL;
   this->CellEntityIdsArrayName = NULL;
   this->CellEntityIdOffset = 1;
+  this->PolygonFileName = NULL;
 }
 
 vtkvmtkConcaveAnnularCapPolyData::~vtkvmtkConcaveAnnularCapPolyData()
@@ -81,6 +82,11 @@ vtkvmtkConcaveAnnularCapPolyData::~vtkvmtkConcaveAnnularCapPolyData()
     this->BoundaryIds->Delete();
     this->BoundaryIds = NULL;
     }
+  if (this->PolygonFileName)
+    {
+    delete[] this->PolygonFileName;
+    this->PolygonFileName = NULL;
+    }
 }
 
 #include <vector>
@@ -90,7 +96,7 @@ using std::pair;
 using std::make_pair;
 typedef pair<vtkIdType,vtkIdType> IdPair;
 
-vector<IdPair> build_closest_pairs(vtkSmartPointer<vtkPoints> barycenters, vtkIdList* boundaryIds)
+vector<IdPair> build_closest_pairs(vtkSmartPointer<vtkPoints> barycenters, vtkIdList* boundaryIds, vector<double> boundingRadius)
 {
   int numberOfBoundaries = barycenters->GetNumberOfPoints();
 
@@ -152,11 +158,14 @@ vector<IdPair> build_closest_pairs(vtkSmartPointer<vtkPoints> barycenters, vtkId
         }
       }
 
-    // Mark as visited and add pair
+    // Mark as visited and add pair ordered as smallest, largest
     //std::cout << "i, closest = " << i << ", " << closest << std::endl;
     visited[i] = true;
     visited[closest] = true;
-    pairs.push_back(make_pair(i, closest));
+    if (boundingRadius[i] < boundingRadius[closest])
+      pairs.push_back(make_pair(i, closest));
+    else
+      pairs.push_back(make_pair(closest, i));
     }
   return pairs;
 }
@@ -216,6 +225,16 @@ int vtkvmtkConcaveAnnularCapPolyData::RequestData(
   vtkSmartPointer<vtkCellArray> newPolys = vtkSmartPointer<vtkCellArray>::New();
   newPolys->DeepCopy(input->GetPolys());
 
+  // Open polygon file if name is given
+  // (hack to quickly write simple data to file, using
+  // vtp or stl might be better in the long term)
+  std::ofstream polygonFile;
+  if (this->PolygonFileName && this->PolygonFileName[0])
+    {
+    polygonFile.open(this->PolygonFileName, ios::out);
+    polygonFile.precision(16);
+    }
+
   // Mark cells if we have a nonempty name
   bool markCells = this->CellEntityIdsArrayName && this->CellEntityIdsArrayName[0];
   vtkSmartPointer<vtkIntArray> cellEntityIdsArray;
@@ -245,15 +264,17 @@ int vtkvmtkConcaveAnnularCapPolyData::RequestData(
   int numberOfBoundaries = boundaries->GetNumberOfCells();
   std::cout << "Found " << numberOfBoundaries << " boundaries." << std::endl;
 
-  // Compute barycenters for all boundaries
+  // Compute barycenters and bounding radius for all boundaries
   info("Computing boundary barycenters...");
   vtkSmartPointer<vtkPoints> barycenters = vtkSmartPointer<vtkPoints>::New();
+  vector<double> boundingRadius(numberOfBoundaries);
   barycenters->SetNumberOfPoints(numberOfBoundaries);
   for (int i=0; i<numberOfBoundaries; i++)
     {
     double barycenter[3];
     vtkvmtkBoundaryReferenceSystems::ComputeBoundaryBarycenter(boundaries->GetCell(i)->GetPoints(), barycenter);
     barycenters->SetPoint(i, barycenter);
+    boundingRadius[i] = vtkvmtkBoundaryReferenceSystems::ComputeBoundaryMeanRadius(boundaries->GetCell(i)->GetPoints(), barycenter);
     }
 
   // Build pairs of boundaries from closest barycenter pairs, limited to list of input ids if any
@@ -263,7 +284,12 @@ int vtkvmtkConcaveAnnularCapPolyData::RequestData(
     {
     vtkErrorMacro(<< "Error: the number of boundaries must be even.");
     }
-  vector<IdPair> boundaryPairs = build_closest_pairs(barycenters, this->BoundaryIds);
+  vector<IdPair> boundaryPairs = build_closest_pairs(barycenters, this->BoundaryIds, boundingRadius);
+
+  if (this->PolygonFileName && this->PolygonFileName[0])
+    {
+    polygonFile << 2*boundaryPairs.size() << std::endl; // Number of boundaries
+    }
 
   // Loop over all boundary pairings uniquely
   for (size_t pairingCount=0; pairingCount<boundaryPairs.size(); ++pairingCount)
@@ -325,17 +351,33 @@ int vtkvmtkConcaveAnnularCapPolyData::RequestData(
     input->GetPoint(boundaryPointIds0->GetId(i0forward), pointForward);
     cross_diff(startingPoint, pointForward, barycenter, cross[0]);
 
+    //std::cout << std::endl << "i0start:" << std::endl;
+    //std::cout << startingPoint[0] << "  " << startingPoint[1] << "  " << startingPoint[2] << std::endl;
+    //std::cout << std::endl;
+
+    //std::cout << std::endl << "i0forward:" << std::endl;
+    //std::cout << pointForward[0] << "  " << pointForward[1] << "  " << pointForward[2] << std::endl;
+    //std::cout << std::endl;
+
     barycenters->GetPoint(i1, barycenter);
     input->GetPoint(boundaryPointIds1->GetId(i1start), startingPoint);
     input->GetPoint(boundaryPointIds1->GetId(i1forward), pointForward);
     cross_diff(startingPoint, pointForward, barycenter, cross[1]);
 
-    int dir0 = +1; // TODO: Does the absolute direction matter?
+    //std::cout << std::endl << "i1start:" << std::endl;
+    //std::cout << startingPoint[0] << "  " << startingPoint[1] << "  " << startingPoint[2] << std::endl;
+    //std::cout << std::endl;
+
+    //std::cout << std::endl << "i1forward:" << std::endl;
+    //std::cout << pointForward[0] << "  " << pointForward[1] << "  " << pointForward[2] << std::endl;
+    //std::cout << std::endl;
+
+    int dir0 = -1; // The absolute direction does not seem to matter
     bool backwards = vtkMath::Dot(cross[0], cross[1]) < 0.0;
     int dir1 = backwards ? dir0: -dir0;
 
     // Compute vectors in directions away from endpoints of polygon
-    double nudgeFactor = 0.01;
+    double nudgeFactor = 0.01; // FIXME: Make this input parameter?
     i0forward = (i0start + dir0 + numberOfBoundaryPoints0) % numberOfBoundaryPoints0;
     input->GetPoint(boundaryPointIds0->GetId(i0start), startingPoint);
     input->GetPoint(boundaryPointIds0->GetId(i0forward), pointForward);
@@ -361,6 +403,10 @@ int vtkvmtkConcaveAnnularCapPolyData::RequestData(
     vector<vtkIdType> polygonPointIdToGlobalPointId(npts);
     // Add all vertices from the inner polygon in one
     // direction, starting and ending with i0start.
+    if (this->PolygonFileName && this->PolygonFileName[0])
+      {
+      polygonFile << numberOfBoundaryPoints0 << std::endl;
+      }
     int kk = 0;
     for (int k=0; k<=numberOfBoundaryPoints0; k++) // NB! Using <= to repeat first point.
       {
@@ -368,11 +414,18 @@ int vtkvmtkConcaveAnnularCapPolyData::RequestData(
       vtkIdType pid = boundaryPointIds0->GetId(bp0id);
       double point[3];
       input->GetPoint(pid, point);
+      if (this->PolygonFileName && this->PolygonFileName[0] && k < numberOfBoundaryPoints0)
+        {
+        polygonFile << point[0] << " " << point[1] << " " << point[2] << std::endl;
+        }
       if (k == 0)
         {
         point[0] += nudgeVector0[0];
         point[1] += nudgeVector0[1];
         point[2] += nudgeVector0[2];
+        //std::cout << std::endl << "nudged point 0:" << std::endl;
+        //std::cout << point[0] << "  " << point[1] << "  " << point[2] << std::endl;
+        //std::cout << std::endl;
         }
       polygonPointIdToGlobalPointId[kk] = pid;
       polygonPointIds->SetId(kk,kk);
@@ -381,17 +434,28 @@ int vtkvmtkConcaveAnnularCapPolyData::RequestData(
       }
     // Continue by adding all vertices from the outer polygon in the
     // opposite direction, starting and ending with i1start.
+    if (this->PolygonFileName && this->PolygonFileName[0])
+      {
+      polygonFile << numberOfBoundaryPoints1 << std::endl;
+      }
     for (int k=0; k<=numberOfBoundaryPoints1; k++) // NB! Using <= to repeat first point.
       {
       vtkIdType bp1id = (i1start + dir1*k + numberOfBoundaryPoints1) % numberOfBoundaryPoints1;
       vtkIdType pid = boundaryPointIds1->GetId(bp1id);
       double point[3];
       input->GetPoint(pid, point);
+      if (this->PolygonFileName && this->PolygonFileName[0] && k < numberOfBoundaryPoints1)
+        {
+        polygonFile << point[0] << " " << point[1] << " " << point[2] << std::endl;
+        }
       if (k == numberOfBoundaryPoints1)
         {
         point[0] += nudgeVector1[0];
         point[1] += nudgeVector1[1];
         point[2] += nudgeVector1[2];
+        //std::cout << std::endl << "nudged point 1:" << std::endl;
+        //std::cout << point[0] << "  " << point[1] << "  " << point[2] << std::endl;
+        //std::cout << std::endl;
         }
       polygonPointIdToGlobalPointId[kk] = pid;
       polygonPointIds->SetId(kk,kk);
@@ -427,6 +491,11 @@ int vtkvmtkConcaveAnnularCapPolyData::RequestData(
         }
       }
     } // end for loop over boundary pairs
+
+  if (this->PolygonFileName && this->PolygonFileName[0])
+    {
+    polygonFile.close();
+    }
 
   // Collect output datastructures
   output->SetPoints(newPoints);

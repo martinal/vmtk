@@ -36,6 +36,7 @@ class vmtkSurfaceCapper(pypes.pypeScript):
         self.Method = 'simple'
         self.ConstraintFactor = 1.0
         self.NumberOfRings = 8
+        self.PolygonFileName = 'Polygons.txt'
 
         self.vmtkRenderer = None
         self.OwnRenderer = 0
@@ -50,6 +51,7 @@ class vmtkSurfaceCapper(pypes.pypeScript):
             ['CellEntityIdOffset','entityidoffset','int',1,'(0,)','offset for entity ids'],
             ['ConstraintFactor','constraint','float',1,'','amount of influence of the shape of the surface near the boundary on the shape of the cap ("smooth" method only)'],
             ['NumberOfRings','rings','int',1,'(0,)','number of rings composing the cap ("smooth" method only)'],
+            ['PolygonFileName','polygonfilename','str',1,'','name of the file where boundary ring coordinates will be written ("concaveannular" method only)'],
             ['Interactive','interactive','bool',1],
             ['vmtkRenderer','renderer','vmtkRenderer',1,'','external renderer']
             ])
@@ -171,6 +173,7 @@ class vmtkSurfaceCapper(pypes.pypeScript):
             import vtkvmtkcontrib
             capper = vtkvmtkcontrib.vtkvmtkConcaveAnnularCapPolyData()
             capper.SetInput(self.Surface)
+            capper.SetPolygonFileName(self.PolygonFileName)
 
         if self.Interactive:
             capper.SetBoundaryIds(boundaryIds)
