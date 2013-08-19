@@ -98,6 +98,7 @@ SET(SCRIPTS_SRCS
   vmtksurfacedecimation.py
   vmtksurfacedistance.py
   vmtksurfacekiteremoval.py
+  vmtksurfacelabel.py
   vmtksurfacemodeller.py
   vmtksurfacenormals.py
   vmtksurfacepointdatatocelldata.py
