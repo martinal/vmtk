@@ -44,27 +44,31 @@ class vmtkMeshMerge(pypes.pypeScript):
                 ])
 
     def Execute(self):
-        data = [(getattr(self, 'Mesh%d'%i), getattr(self, 'CellEntityIdOffset%d'%i))
-                for i in range(1,self.max_meshes+1)]
-        n = sum(0 if d[0] is None else 1 for d in data)
-        if n < 2:
+        data = []
+        for i in range(1,self.max_meshes+1):
+            mesh = getattr(self, 'Mesh%d' % i)
+            if mesh is not None:
+                offset = getattr(self, 'CellEntityIdOffset%d' % i)
+                data.append((i,mesh,offset))
+        if len(data) < 2:
             self.PrintError('Error: Need at least 2 meshes to merge.')
 
-        def addIds(mesh, offset):
-            if mesh is not None and offset != 0:
-                cellids = mesh.GetCellData().GetScalars(self.CellEntityIdsArrayName)
-                for i in range(cellids.GetNumberOfTuples()):
-                    cellids.SetValue(i, cellids.GetValue(i) + offset)
-
         merger = vtkvmtk.vtkvmtkAppendFilter()
-        for mesh, offsets in data:
-            addIds(mesh, offsets)
-            if mesh != None:
-                merger.AddInput(mesh)
+        for i, mesh, offset in data:
+            cellids = mesh.GetCellData().GetScalars(self.CellEntityIdsArrayName)
+            numIds = cellids.GetNumberOfTuples()
+            self.PrintLog("Merging mesh %s with %d entityids offset by %d." % (i, numIds, offset))
+            if offset != 0:
+                for i in range(numIds):
+                    cellids.SetValue(i, cellids.GetValue(i) + offset)
+            merger.AddInput(mesh)
         merger.SetMergeDuplicatePoints(1)
         merger.Update()
 
         self.Mesh = merger.GetOutput()
+        cellids = self.Mesh.GetCellData().GetScalars(self.CellEntityIdsArrayName)
+        numIds = cellids.GetNumberOfTuples()
+        self.PrintLog("Merged mesh has %d entityids." % (numIds,))
 
 if __name__ == '__main__':
     main = pypes.pypeMain()
