@@ -66,9 +66,10 @@ class vmtkMeshMerge(pypes.pypeScript):
         merger.Update()
 
         self.Mesh = merger.GetOutput()
-        cellids = self.Mesh.GetCellData().GetScalars(self.CellEntityIdsArrayName)
-        numIds = cellids.GetNumberOfTuples()
-        self.PrintLog("Merged mesh has %d entityids." % (numIds,))
+        # This fails if mesh doesnt have the data:
+        #cellids = self.Mesh.GetCellData().GetScalars(self.CellEntityIdsArrayName)
+        #numIds = cellids.GetNumberOfTuples()
+        #self.PrintLog("Merged mesh has %d entityids." % (numIds,))
 
 if __name__ == '__main__':
     main = pypes.pypeMain()
